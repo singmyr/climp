@@ -38,12 +38,6 @@ void enableRawMode() {
 }
 
 int main(int argc, char** argv) {
-    // Handle command-line arguments
-    /*
-        todo handle --directory argument
-        todo handle --playlist argument
-        todo handle --file argument (play single file only)
-    */
     if (argc != 2) {
         die("Please input path to the music as argument");
     }
