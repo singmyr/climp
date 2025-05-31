@@ -51,11 +51,14 @@ void enableRawMode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
-// todo log unhandled events for debugging purposes
+void playTrack(size_t track_index) {
+    // placeholder for playing a track
+}
+
 void keyboardListener() {
     char c;
     while (read(STDIN_FILENO, &c, 1) == 1) {
-        if (iscntrl(c)) {
+        if (c == '\x1b') {
             char seq[3];
 
             if (read(STDIN_FILENO, &seq[0], 1) != 1) {
@@ -87,9 +90,16 @@ void keyboardListener() {
                 }
             }
         } else {
-            if (c == 'q') {
-                should_exit = true;
-                return;
+            switch (c) {
+                case '\n':
+                    playTrack(selected_track_index);
+                    break;
+                case ' ':
+                    // todo: play/pause
+                    break;
+                case 'q':
+                    should_exit = true;
+                    return;
             }
             // printf("%d ('%c')\n", c, c);
         }
