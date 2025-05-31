@@ -118,7 +118,10 @@ int main(int argc, char** argv) {
     std::string path = argv[1];
     try {
         for (const auto& entry : std::filesystem::directory_iterator(path, std::filesystem::directory_options::follow_directory_symlink | std::filesystem::directory_options::skip_permission_denied)) {
-            track_list.push_back(entry.path().string());
+            // Check that it's not a directory and a regular file and has the mp3 file extension
+            if (!entry.is_directory() && entry.is_regular_file() && entry.path().extension() == ".mp3") {
+                track_list.push_back(entry.path().filename());
+            }
         }
     } catch (std::filesystem::filesystem_error e) {
         die(e.what());
