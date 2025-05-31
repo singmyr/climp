@@ -5,6 +5,7 @@
 #include <chrono>
 using namespace std::chrono_literals;
 #include <thread>
+#include <csignal>
 
 // Headers required for terminal management
 // #include <sys/ioctl.h>
@@ -12,10 +13,23 @@ using namespace std::chrono_literals;
 #include <termios.h>
 
 struct termios original_termios;
+bool should_exit = false;
+std::vector<std::string> track_list;
+size_t selected_track_index = 0;
 
 void die(const char* msg) {
     std::cerr << msg << std::endl;
     exit(1);
+}
+
+void clearScreen() {
+    std::cout << "\x1b[2J\x1b[H";
+}
+
+void interruptSignalHandler(int sig) {
+    clearScreen();
+
+    exit(sig);
 }
 
 void disableRawMode() {
@@ -37,14 +51,59 @@ void enableRawMode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
+// todo log unhandled events for debugging purposes
+void keyboardListener() {
+    char c;
+    while (read(STDIN_FILENO, &c, 1) == 1) {
+        if (iscntrl(c)) {
+            char seq[3];
+
+            if (read(STDIN_FILENO, &seq[0], 1) != 1) {
+                continue;
+            }
+
+            if (read(STDIN_FILENO, &seq[1], 1) != 1) {
+                continue;
+            }
+
+            if (seq[0] == '[') {
+                switch (seq[1]) {
+                    case 'A':
+                        if (selected_track_index > 0) {
+                            selected_track_index--;
+                        }
+                        break;
+                    case 'B':
+                        if (selected_track_index < track_list.size() - 1) {
+                            selected_track_index++;
+                        }
+                        break;
+                    case 'C':
+                        // Right
+                        break;
+                    case 'D':
+                        // Left
+                        break;
+                }
+            }
+        } else {
+            if (c == 'q') {
+                should_exit = true;
+                return;
+            }
+            // printf("%d ('%c')\n", c, c);
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     if (argc != 2) {
         die("Please input path to the music as argument");
     }
 
-    enableRawMode();
+    signal(SIGINT, interruptSignalHandler);
 
-    std::vector<std::string> track_list;
+    enableRawMode();
 
     std::string path = argv[1];
     try {
@@ -57,20 +116,39 @@ int main(int argc, char** argv) {
         die("caught unknown exception");
     }
 
+    clearScreen();
+
     // Hide cursor
     std::cout << "\x1b[?25l";
-    std::cout << "\x1b[2J\x1b[H";
 
-    // Start rendering
-    std::cout << "\x1b[H";
-    for (const auto& track : track_list) {
-        std::cout << track << "\x1b[K" << std::endl;
+    std::thread input_thread(keyboardListener);
+
+    std::string normal_color_style = "\x1b[38;2;255;255;255m";
+    std::string selected_color_style = "\x1b[48;2;255;255;255m\x1b[38;2;0;0;0m";
+
+    while (!should_exit) {
+        // Start rendering
+        clearScreen();
+
+        for (size_t i = 0; i < track_list.size(); ++i) {
+            std::string track = track_list[i];
+
+            std::string* color_style = &normal_color_style;
+            if (i == selected_track_index) {
+                color_style = &selected_color_style;
+            }
+
+            std::cout << *color_style << track << "\x1b[0m\x1b[K" << std::endl;
+        }
+        std::this_thread::sleep_for(10ms);
     }
-    std::this_thread::sleep_for(1000ms);
+
+    input_thread.join();
     
     // Show cursor
     std::cout << "\x1b[?25h";
-    std::cout << "\x1b[H";
+
+    clearScreen();
 
     return 0;
 }
