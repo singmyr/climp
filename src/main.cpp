@@ -8,7 +8,7 @@ using namespace std::chrono_literals;
 #include <csignal>
 
 // Headers required for terminal management
-// #include <sys/ioctl.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 #include <termios.h>
 
@@ -16,6 +16,8 @@ struct termios original_termios;
 bool should_exit = false;
 std::vector<std::string> track_list;
 size_t selected_track_index = 0;
+unsigned short width;
+unsigned short height;
 
 void die(const char* msg) {
     std::cerr << msg << std::endl;
@@ -24,6 +26,14 @@ void die(const char* msg) {
 
 void clearScreen() {
     std::cout << "\x1b[2J\x1b[H";
+}
+
+void get_window_size(unsigned short* width, unsigned short* height) {
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+
+    *width = w.ws_col;
+    *height = w.ws_row;
 }
 
 void interruptSignalHandler(int sig) {
@@ -110,6 +120,8 @@ int main(int argc, char** argv) {
     if (argc != 2) {
         die("Please input path to the music as argument");
     }
+
+    get_window_size(&width, &height);
 
     signal(SIGINT, interruptSignalHandler);
 
