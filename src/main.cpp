@@ -6,18 +6,25 @@
 using namespace std::chrono_literals;
 #include <thread>
 #include <csignal>
+#include <cstdlib>
+#include <ctime>
 
 // Headers required for terminal management
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <termios.h>
 
+#include "audioengine.hpp"
+
 struct termios original_termios;
 bool should_exit = false;
-std::vector<std::string> track_list;
+std::vector<std::filesystem::path> track_list;
 size_t selected_track_index = 0;
+size_t playing_track_index = 65535;
 unsigned short width;
 unsigned short height;
+
+AudioEngine audioEngine;
 
 void die(const char* msg) {
     std::cerr << msg << std::endl;
@@ -62,7 +69,28 @@ void enableRawMode() {
 }
 
 void playTrack(size_t track_index) {
-    // placeholder for playing a track
+    if (track_index <= track_list.size() - 1) {
+        std::filesystem::path track = track_list[track_index];
+        audioEngine.playTrack(std::filesystem::absolute(track).c_str(), false);
+
+        playing_track_index = track_index;
+        selected_track_index = track_index;
+    }
+}
+
+void playNextTrack() {
+    size_t next_track = playing_track_index;
+    // todo implement shuffle/repeat
+    // Pick random song
+    // -2 to remove the current active track from the pool
+    size_t track_list_len = track_list.size();
+    next_track = (size_t)std::rand() % (track_list_len - 2);
+    // If we get the same track again, increase by 1 to get the next one in line
+    if (next_track == playing_track_index) {
+        next_track++;
+    }
+
+    playTrack(next_track);
 }
 
 void keyboardListener() {
@@ -93,19 +121,23 @@ void keyboardListener() {
                         break;
                     case 'C':
                         // Right
+                        // todo decide between seek and skip
                         break;
                     case 'D':
                         // Left
+                        // todo decide between seek and skip
                         break;
                 }
             }
         } else {
             switch (c) {
                 case '\n':
-                    playTrack(selected_track_index);
+                    if (selected_track_index != playing_track_index) {
+                        playTrack(selected_track_index);
+                    }
                     break;
                 case ' ':
-                    // todo: play/pause
+                    audioEngine.playOrPause();
                     break;
                 case 'q':
                     should_exit = true;
@@ -121,6 +153,9 @@ int main(int argc, char** argv) {
         die("Please input path to the music as argument");
     }
 
+    // use current time as seed
+    std::srand(std::time({}));
+
     get_window_size(&width, &height);
 
     signal(SIGINT, interruptSignalHandler);
@@ -132,7 +167,7 @@ int main(int argc, char** argv) {
         for (const auto& entry : std::filesystem::directory_iterator(path, std::filesystem::directory_options::follow_directory_symlink | std::filesystem::directory_options::skip_permission_denied)) {
             // Check that it's not a directory and a regular file and has the mp3 file extension
             if (!entry.is_directory() && entry.is_regular_file() && entry.path().extension() == ".mp3") {
-                track_list.push_back(entry.path().filename());
+                track_list.push_back(entry.path());
             }
         }
     } catch (std::filesystem::filesystem_error e) {
@@ -152,20 +187,25 @@ int main(int argc, char** argv) {
     std::string selected_color_style = "\x1b[48;2;255;255;255m\x1b[38;2;0;0;0m";
 
     while (!should_exit) {
+        // Get updates from audio engine
+        if (audioEngine.isTrackFinished()) {
+            playNextTrack();
+        }
+
         // Start rendering
         clearScreen();
 
         for (size_t i = 0; i < track_list.size(); ++i) {
-            std::string track = track_list[i];
+            std::filesystem::path track = track_list[i];
 
             std::string* color_style = &normal_color_style;
             if (i == selected_track_index) {
                 color_style = &selected_color_style;
             }
 
-            std::cout << *color_style << track << "\x1b[0m\x1b[K" << std::endl;
+            std::cout << *color_style << track.filename() << "\x1b[0m\x1b[K" << std::endl;
         }
-        std::this_thread::sleep_for(10ms);
+        std::this_thread::sleep_for(100ms);
     }
 
     input_thread.join();

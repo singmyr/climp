@@ -1,2 +1,2 @@
-climp: src/main.cpp
-	g++ src/main.cpp --std=c++20 -Wall -Wextra -pedantic -o climp
+climp:
+	g++ src/*.cpp --std=c++20 -Wall -Wextra -pedantic -I./include -I./external -o climp

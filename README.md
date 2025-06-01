@@ -2,17 +2,18 @@
 
 ## Arguments
 
- - [ ] --directory
- - [ ] --playlist
- - [ ] --file
+ - [ ] --directory DIRECTORY
+ - [ ] --playlist PLAYLIST
+ - [ ] --file FILE
+ - [ ] --shuffle (enables it, disabled by default)
+ - [ ] --repeat 1/2 (0 default, 1 repeat playlist, 2 repeat song)
 
 ## Commands
 
  - [x] q = quit  
- - [ ] space = play/pause  
- - [ ] p = select playlist  
- - [ ] up/down select song in playlistlibrary  
- - [ ] enter = play selected song in playlist  
+ - [x] space = play/pause  
+ - [x] up/down select song in playlistlibrary  
+ - [x] enter = play selected song in playlist  
  - [ ] s = shuffle toggle  
  - [ ] r = repeat mode toggle (off/one/all)  
 
