@@ -8,7 +8,7 @@
 
 ## Commands
 
- - [ ] q = quit  
+ - [x] q = quit  
  - [ ] space = play/pause  
  - [ ] p = select playlist  
  - [ ] up/down select song in playlistlibrary  
